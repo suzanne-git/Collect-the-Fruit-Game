@@ -30,14 +30,12 @@
       position: absolute;
       width: 60px;
       height: 80px;
-      background-color: #8B4513;
-      border-radius: 8px;
       left: 50px;
       top: 50%;
       transform: translate(-50%, -50%);
       transition: none;
       pointer-events: none;
-      /* Image-ready: replace div with <img class="animal" src="animal.png"> - add object-fit: cover for img */
+      object-fit: contain;
     }
 
     .animal.pop {
@@ -65,20 +63,12 @@
       position: absolute;
       width: 50px;
       height: 50px;
-      border-radius: 50%;
-      background-color: #E74C3C;
       pointer-events: none;
       transform: translate(-50%, -50%);
       transition: transform 0.3s ease-out;
-      /* Image-ready: replace div with <img class="fruit" src="apple.png"> - add object-fit: cover for img */
+      object-fit: contain;
     }
 
-    /* When swapping to <img class="animal"> or <img class="fruit">, add: */
-    img.animal,
-    img.fruit {
-      object-fit: cover;
-      display: block;
-    }
 
     .fruit.collecting {
       transform: translate(-50%, -50%) scale(0);
@@ -173,9 +163,9 @@
   <div class="game-area" id="gameArea">
     <div class="game-header">
       <h1 class="game-title">Collect the Fruit!</h1>
-      <p class="game-directions">Tap where you want the animal to go. Collect 5 of the 10 fruits!</p>
+      <p class="game-directions">Tap where you want the animal to go. Collect all 5 strawberries!</p>
     </div>
-    <div class="animal" id="animal"></div>
+    <img class="animal" id="animal" src="images/animal.png" alt="animal">
     <!-- Fruit elements added by JS for flexible positioning -->
     <button class="reset-button" id="resetButton">Play Again</button>
   </div>
@@ -214,10 +204,15 @@
         const topPadding = 120; // Extra space to avoid title and directions
 
         for (let i = 0; i < FRUIT_COUNT; i++) {
-          const fruit = document.createElement('div');
+          const fruit = document.createElement('img');
           fruit.className = 'fruit';
+          
+          // First 5 are strawberries, next 5 are blueberries
+          const isStrawberry = i < 5;
+          fruit.src = isStrawberry ? 'images/strawberry.png' : 'images/blueberry.png';
+          fruit.alt = isStrawberry ? 'strawberry' : 'blueberry';
+          fruit.dataset.type = isStrawberry ? 'strawberry' : 'blueberry';
           fruit.dataset.index = i;
-          fruit.style.backgroundColor = COLORS[i % COLORS.length];
 
           let x, y;
           let attempts = 0;
@@ -235,7 +230,7 @@
           fruit.style.top = y + 'px';
 
           gameArea.appendChild(fruit);
-          fruits.push({ el: fruit, x, y });
+          fruits.push({ el: fruit, x, y, type: fruit.dataset.type });
         }
 
         return fruits;
@@ -339,15 +334,20 @@
           animal.classList.remove('pop');
         }, 300);
 
+        const isStrawberry = el.dataset.type === 'strawberry';
+
         let removed = false;
         function removeFruit() {
           if (removed) return;
           removed = true;
           el.remove();
-          collectedCount++;
-
-          if (collectedCount >= FRUITS_TO_WIN) {
-            triggerWinCelebration();
+          
+          // Only count strawberries toward the win condition
+          if (isStrawberry) {
+            collectedCount++;
+            if (collectedCount >= FRUITS_TO_WIN) {
+              triggerWinCelebration();
+            }
           }
         }
 
