@@ -99,6 +99,11 @@
       height: 100px;
     }
 
+    .fruit[data-type="blueberry"].faded {
+      opacity: 0.3;
+      transition: opacity 0.5s ease-out;
+    }
+
     .fruit.collecting {
       transform: translate(-50%, -50%) scale(0);
     }
@@ -229,6 +234,7 @@
         const fruits = [];
         const rect = gameArea.getBoundingClientRect();
         const padding = 80;
+        const leftPadding = 250; // Extra space to avoid chipmunk starting position
         const topPadding = 120; // Extra space to avoid title and directions
 
         for (let i = 0; i < FRUIT_COUNT; i++) {
@@ -245,7 +251,7 @@
           let x, y;
           let attempts = 0;
           do {
-            x = padding + Math.random() * (rect.width - padding * 2);
+            x = leftPadding + Math.random() * (rect.width - leftPadding - padding);
             y = topPadding + Math.random() * (rect.height - topPadding - padding);
             attempts++;
           } while (attempts < 50 && fruits.some(f => {
@@ -452,6 +458,11 @@
       }
 
       function spawnConfetti() {
+        // Fade out remaining blueberries
+        document.querySelectorAll('.fruit[data-type="blueberry"]').forEach(b => {
+          b.classList.add('faded');
+        });
+
         const rect = gameArea.getBoundingClientRect();
         const count = 100;
         const colors = ['#E74C3C', '#F39C12', '#2ECC71', '#9B59B6', '#3498DB', '#1ABC9C', '#E91E63'];
