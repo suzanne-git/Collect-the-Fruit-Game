@@ -2,8 +2,8 @@
 
 Add your image files here:
 
-- **animal.png** – The character that moves around (60×80px recommended, or larger with same aspect ratio)
-- **strawberry.png** – The strawberries to collect (50×50px recommended)
+- **animal.png** – The character that moves around (180×240px recommended, or larger with same aspect ratio)
+- **strawberry.png** – The strawberries to collect (100×100px recommended)
 - **blueberry.png** – The blueberries (50×50px recommended)
 
 ## Tips

@@ -28,8 +28,8 @@
 
     .animal {
       position: absolute;
-      width: 60px;
-      height: 80px;
+      width: 180px;
+      height: 240px;
       left: 50px;
       top: 50%;
       transform: translate(-50%, -50%);
@@ -59,6 +59,31 @@
       100% { transform: translate(-50%, -50%) translateY(0) scale(1); }
     }
 
+    .animal.facing-left {
+      transform: translate(-50%, -50%) scaleX(-1);
+    }
+
+    .animal.facing-left.pop {
+      animation: animalPopLeft 0.3s ease-out;
+    }
+
+    @keyframes animalPopLeft {
+      0%, 100% { transform: translate(-50%, -50%) scaleX(-1) scale(1); }
+      50% { transform: translate(-50%, -50%) scaleX(-1) scale(1.2); }
+    }
+
+    .fruit.shake {
+      animation: fruitShake 0.4s ease-out;
+    }
+
+    @keyframes fruitShake {
+      0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+      20% { transform: translate(-50%, -50%) rotate(-15deg); }
+      40% { transform: translate(-50%, -50%) rotate(15deg); }
+      60% { transform: translate(-50%, -50%) rotate(-10deg); }
+      80% { transform: translate(-50%, -50%) rotate(10deg); }
+    }
+
     .fruit {
       position: absolute;
       width: 50px;
@@ -69,6 +94,10 @@
       object-fit: contain;
     }
 
+    .fruit[data-type="strawberry"] {
+      width: 100px;
+      height: 100px;
+    }
 
     .fruit.collecting {
       transform: translate(-50%, -50%) scale(0);
@@ -194,7 +223,6 @@
         animalY = rect.height / 2;
         animal.style.left = animalX + 'px';
         animal.style.top = animalY + 'px';
-        animal.style.transform = 'translate(-50%, -50%)';
       }
 
       function createFruit() {
@@ -258,6 +286,13 @@
         const pos = getEventPosition(e);
         destX = pos.x;
         destY = pos.y;
+
+        // Flip animal based on target direction
+        if (destX < animalX) {
+          animal.classList.add('facing-left');
+        } else {
+          animal.classList.remove('facing-left');
+        }
       }
 
       gameArea.addEventListener('click', handleTap);
@@ -275,10 +310,36 @@
           if (el.classList.contains('collecting')) return;
 
           const dist = distance(animalCenterX, animalCenterY, x, y);
-          if (dist < COLLISION_RADIUS) {
+          const inRange = dist < COLLISION_RADIUS;
+
+          if (el.dataset.type === 'blueberry') {
+            if (inRange) {
+              // Only reject if not already rejected during this encounter
+              if (!el.dataset.rejected) {
+                rejectBlueberry(el);
+              }
+            } else {
+              // Animal left the zone, clear rejected state
+              delete el.dataset.rejected;
+            }
+          } else if (inRange) {
             collectFruit(el);
           }
         });
+      }
+
+      function rejectBlueberry(el) {
+        el.dataset.rejected = 'true';
+        playErrorSound();
+        el.classList.add('shake');
+        
+        // Stop the animal - wait for next tap to continue
+        destX = null;
+        destY = null;
+
+        setTimeout(() => {
+          el.classList.remove('shake');
+        }, 500);
       }
 
       function playCollectSound() {
@@ -321,6 +382,26 @@
               osc.start(t);
               osc.stop(t + 0.2);
             });
+          } catch (_) {}
+        });
+      }
+
+      function playErrorSound() {
+        const audio = new Audio('sounds/error.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(() => {
+          try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 200;
+            osc.type = 'square';
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.2);
           } catch (_) {}
         });
       }
@@ -439,7 +520,7 @@
         destY = null;
         // Reset animal position and classes
         animalX = 50;
-        animal.classList.remove('happy-hop', 'pop');
+        animal.classList.remove('happy-hop', 'pop', 'facing-left');
         initAnimalPosition();
         // Create new fruit
         fruits = createFruit();
