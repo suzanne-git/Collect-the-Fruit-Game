@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Collect the Fruit!</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+
+    .game-area {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, #87CEEB 0%, #98D98E 100%);
+      cursor: pointer;
+    }
+
+    .animal {
+      position: absolute;
+      width: 60px;
+      height: 80px;
+      background-color: #8B4513;
+      border-radius: 8px;
+      left: 50px;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      transition: none;
+      pointer-events: none;
+      /* Image-ready: replace div with <img class="animal" src="animal.png"> - add object-fit: cover for img */
+    }
+
+    .animal.pop {
+      animation: animalPop 0.3s ease-out;
+    }
+
+    .animal.happy-hop {
+      animation: happyHop 0.8s ease-out;
+    }
+
+    @keyframes animalPop {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.2); }
+    }
+
+    @keyframes happyHop {
+      0% { transform: translate(-50%, -50%) translateY(0) scale(1); }
+      25% { transform: translate(-50%, -50%) translateY(-40px) scale(1.1); }
+      50% { transform: translate(-50%, -50%) translateY(-20px) scale(1.1); }
+      75% { transform: translate(-50%, -50%) translateY(-30px) scale(1.1); }
+      100% { transform: translate(-50%, -50%) translateY(0) scale(1); }
+    }
+
+    .fruit {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background-color: #E74C3C;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      transition: transform 0.3s ease-out;
+      /* Image-ready: replace div with <img class="fruit" src="apple.png"> - add object-fit: cover for img */
+    }
+
+    /* When swapping to <img class="animal"> or <img class="fruit">, add: */
+    img.animal,
+    img.fruit {
+      object-fit: cover;
+      display: block;
+    }
+
+    .fruit.collecting {
+      transform: translate(-50%, -50%) scale(0);
+    }
+
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      animation: confettiFall 3s ease-out forwards;
+    }
+
+    @keyframes confettiFall {
+      0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-area" id="gameArea">
+    <div class="animal" id="animal"></div>
+    <!-- Fruit elements added by JS for flexible positioning -->
+  </div>
+
+  <script>
+    (function() {
+      const gameArea = document.getElementById('gameArea');
+      const animal = document.getElementById('animal');
+
+      const ANIMAL_SPEED = 4;
+      const COLLISION_RADIUS = 45;
+      const FRUIT_COUNT = 5;
+      const COLORS = ['#E74C3C', '#F39C12', '#2ECC71', '#9B59B6', '#3498DB'];
+
+      let animalX = 50;
+      let animalY = 0;
+      let destX = null;
+      let destY = null;
+      let collectedCount = 0;
+      let gameWon = false;
+      let animationId = null;
+
+      function initAnimalPosition() {
+        const rect = gameArea.getBoundingClientRect();
+        animalY = rect.height / 2;
+        animal.style.left = animalX + 'px';
+        animal.style.top = animalY + 'px';
+        animal.style.transform = 'translate(-50%, -50%)';
+      }
+
+      function createFruit() {
+        const fruits = [];
+        const rect = gameArea.getBoundingClientRect();
+        const padding = 80;
+
+        for (let i = 0; i < FRUIT_COUNT; i++) {
+          const fruit = document.createElement('div');
+          fruit.className = 'fruit';
+          fruit.dataset.index = i;
+          fruit.style.backgroundColor = COLORS[i % COLORS.length];
+
+          let x, y;
+          let attempts = 0;
+          do {
+            x = padding + Math.random() * (rect.width - padding * 2);
+            y = padding + Math.random() * (rect.height - padding * 2);
+            attempts++;
+          } while (attempts < 50 && fruits.some(f => {
+            const dx = Math.abs(f.x - x);
+            const dy = Math.abs(f.y - y);
+            return dx < 80 && dy < 80;
+          }));
+
+          fruit.style.left = x + 'px';
+          fruit.style.top = y + 'px';
+
+          gameArea.appendChild(fruit);
+          fruits.push({ el: fruit, x, y });
+        }
+
+        return fruits;
+      }
+
+      let fruits = [];
+
+      function getEventPosition(e) {
+        const rect = gameArea.getBoundingClientRect();
+        if (e.touches && e.touches.length > 0) {
+          return {
+            x: e.touches[0].clientX - rect.left,
+            y: e.touches[0].clientY - rect.top
+          };
+        }
+        return {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        };
+      }
+
+      function handleTap(e) {
+        if (gameWon) return;
+        e.preventDefault();
+        const pos = getEventPosition(e);
+        destX = pos.x;
+        destY = pos.y;
+      }
+
+      gameArea.addEventListener('click', handleTap);
+      gameArea.addEventListener('touchstart', handleTap, { passive: false });
+
+      function distance(x1, y1, x2, y2) {
+        return Math.hypot(x2 - x1, y2 - y1);
+      }
+
+      function checkCollision() {
+        const animalCenterX = animalX;
+        const animalCenterY = animalY;
+
+        fruits.forEach(({ el, x, y }) => {
+          if (el.classList.contains('collecting')) return;
+
+          const dist = distance(animalCenterX, animalCenterY, x, y);
+          if (dist < COLLISION_RADIUS) {
+            collectFruit(el);
+          }
+        });
+      }
+
+      function playCollectSound() {
+        const audio = new Audio('sounds/collect.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(() => {
+          try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 523;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.2, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.15);
+          } catch (_) {}
+        });
+      }
+
+      function playCheerSound() {
+        const audio = new Audio('sounds/cheer.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(() => {
+          try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const notes = [523, 659, 784, 1047];
+            notes.forEach((freq, i) => {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.connect(gain);
+              gain.connect(ctx.destination);
+              osc.frequency.value = freq;
+              osc.type = 'sine';
+              const t = ctx.currentTime + i * 0.15;
+              gain.gain.setValueAtTime(0.2, t);
+              gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+              osc.start(t);
+              osc.stop(t + 0.2);
+            });
+          } catch (_) {}
+        });
+      }
+
+      function collectFruit(el) {
+        el.classList.add('collecting');
+        animal.classList.add('pop');
+        playCollectSound();
+
+        setTimeout(() => {
+          animal.classList.remove('pop');
+        }, 300);
+
+        let removed = false;
+        function removeFruit() {
+          if (removed) return;
+          removed = true;
+          el.remove();
+          collectedCount++;
+
+          if (collectedCount >= FRUIT_COUNT) {
+            triggerWinCelebration();
+          }
+        }
+
+        el.addEventListener('transitionend', removeFruit, { once: true });
+        // Fallback in case transitionend doesn't fire
+        setTimeout(removeFruit, 350);
+      }
+
+      function triggerWinCelebration() {
+        gameWon = true;
+        destX = null;
+        destY = null;
+
+        animal.classList.add('happy-hop');
+        playCheerSound();
+
+        setTimeout(() => {
+          animal.classList.remove('happy-hop');
+          spawnConfetti();
+        }, 800);
+      }
+
+      function spawnConfetti() {
+        const rect = gameArea.getBoundingClientRect();
+        const centerX = rect.width / 2;
+        const count = 60;
+        const colors = ['#E74C3C', '#F39C12', '#2ECC71', '#9B59B6', '#3498DB', '#1ABC9C', '#E91E63'];
+
+        for (let i = 0; i < count; i++) {
+          const piece = document.createElement('div');
+          piece.className = 'confetti-piece';
+          piece.style.backgroundColor = colors[i % colors.length];
+          piece.style.left = (centerX + (Math.random() - 0.5) * 200) + 'px';
+          piece.style.top = '20%';
+          piece.style.animationDelay = (Math.random() * 0.5) + 's';
+
+          gameArea.appendChild(piece);
+
+          setTimeout(() => piece.remove(), 3500);
+        }
+      }
+
+      function gameLoop() {
+        if (destX !== null && destY !== null && !gameWon) {
+          const dx = destX - animalX;
+          const dy = destY - animalY;
+          const dist = Math.hypot(dx, dy);
+
+          if (dist > 2) {
+            const moveX = (dx / dist) * ANIMAL_SPEED;
+            const moveY = (dy / dist) * ANIMAL_SPEED;
+            animalX += moveX;
+            animalY += moveY;
+          } else {
+            destX = null;
+            destY = null;
+          }
+
+          animal.style.left = animalX + 'px';
+          animal.style.top = animalY + 'px';
+
+          checkCollision();
+        }
+
+        animationId = requestAnimationFrame(gameLoop);
+      }
+
+      function init() {
+        initAnimalPosition();
+        fruits = createFruit();
+        gameLoop();
+      }
+
+      window.addEventListener('load', init);
+      window.addEventListener('resize', () => {
+        initAnimalPosition();
+      });
+    })();
+  </script>
+</body>
+</html>
