@@ -103,19 +103,81 @@
     @keyframes confettiFall {
       0% {
         transform: translateY(0) rotate(0deg);
-        opacity: 1;
       }
       100% {
-        transform: translateY(100vh) rotate(720deg);
-        opacity: 0;
+        transform: translateY(110vh) rotate(720deg);
       }
+    }
+
+    .game-header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      text-align: center;
+      padding: 15px;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .game-title {
+      font-family: 'Comic Sans MS', 'Chalkboard', cursive, sans-serif;
+      font-size: 2.5rem;
+      color: #560269;
+      margin-bottom: 8px;
+    }
+
+    .game-directions {
+      font-family: 'Comic Sans MS', 'Chalkboard', cursive, sans-serif;
+      font-size: 1.1rem;
+      color: #104e94;
+    }
+
+    .reset-button {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 12px 24px;
+      font-family: 'Comic Sans MS', 'Chalkboard', cursive, sans-serif;
+      font-size: 1.2rem;
+      background-color: #9006af;
+      color: white;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #560269;
+      z-index: 100;
+      transition: transform 0.1s, box-shadow 0.1s, opacity 0.3s;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .reset-button.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .reset-button:hover {
+      transform: translate(-50%, -50%) translateY(-2px);
+      box-shadow: 0 6px 0 #560269;
+    }
+
+    .reset-button:active {
+      transform: translate(-50%, -50%) translateY(2px);
+      box-shadow: 0 2px 0 #560269;
     }
   </style>
 </head>
 <body>
   <div class="game-area" id="gameArea">
+    <div class="game-header">
+      <h1 class="game-title">Collect the Fruit!</h1>
+      <p class="game-directions">Tap where you want the animal to go. Collect 5 of the 10 fruits!</p>
+    </div>
     <div class="animal" id="animal"></div>
     <!-- Fruit elements added by JS for flexible positioning -->
+    <button class="reset-button" id="resetButton">Play Again</button>
   </div>
 
   <script>
@@ -125,7 +187,8 @@
 
       const ANIMAL_SPEED = 4;
       const COLLISION_RADIUS = 45;
-      const FRUIT_COUNT = 5;
+      const FRUIT_COUNT = 10;
+      const FRUITS_TO_WIN = 5;
       const COLORS = ['#E74C3C', '#F39C12', '#2ECC71', '#9B59B6', '#3498DB'];
 
       let animalX = 50;
@@ -148,6 +211,7 @@
         const fruits = [];
         const rect = gameArea.getBoundingClientRect();
         const padding = 80;
+        const topPadding = 120; // Extra space to avoid title and directions
 
         for (let i = 0; i < FRUIT_COUNT; i++) {
           const fruit = document.createElement('div');
@@ -159,7 +223,7 @@
           let attempts = 0;
           do {
             x = padding + Math.random() * (rect.width - padding * 2);
-            y = padding + Math.random() * (rect.height - padding * 2);
+            y = topPadding + Math.random() * (rect.height - topPadding - padding);
             attempts++;
           } while (attempts < 50 && fruits.some(f => {
             const dx = Math.abs(f.x - x);
@@ -282,7 +346,7 @@
           el.remove();
           collectedCount++;
 
-          if (collectedCount >= FRUIT_COUNT) {
+          if (collectedCount >= FRUITS_TO_WIN) {
             triggerWinCelebration();
           }
         }
@@ -308,22 +372,26 @@
 
       function spawnConfetti() {
         const rect = gameArea.getBoundingClientRect();
-        const centerX = rect.width / 2;
-        const count = 60;
+        const count = 100;
         const colors = ['#E74C3C', '#F39C12', '#2ECC71', '#9B59B6', '#3498DB', '#1ABC9C', '#E91E63'];
 
         for (let i = 0; i < count; i++) {
           const piece = document.createElement('div');
           piece.className = 'confetti-piece';
           piece.style.backgroundColor = colors[i % colors.length];
-          piece.style.left = (centerX + (Math.random() - 0.5) * 200) + 'px';
-          piece.style.top = '20%';
-          piece.style.animationDelay = (Math.random() * 0.5) + 's';
+          piece.style.left = (Math.random() * rect.width) + 'px';
+          piece.style.top = (-10 - Math.random() * 20) + 'px';
+          piece.style.animationDelay = (Math.random() * 0.8) + 's';
 
           gameArea.appendChild(piece);
 
-          setTimeout(() => piece.remove(), 3500);
+          setTimeout(() => piece.remove(), 5000);
         }
+
+        // Show reset button after 2 seconds
+        setTimeout(() => {
+          document.getElementById('resetButton').classList.add('visible');
+        }, 2000);
       }
 
       function gameLoop() {
@@ -356,6 +424,31 @@
         fruits = createFruit();
         gameLoop();
       }
+
+      function resetGame() {
+        // Hide reset button
+        document.getElementById('resetButton').classList.remove('visible');
+        // Remove existing fruit
+        document.querySelectorAll('.fruit').forEach(f => f.remove());
+        // Remove any confetti
+        document.querySelectorAll('.confetti-piece').forEach(c => c.remove());
+        // Reset state
+        collectedCount = 0;
+        gameWon = false;
+        destX = null;
+        destY = null;
+        // Reset animal position and classes
+        animalX = 50;
+        animal.classList.remove('happy-hop', 'pop');
+        initAnimalPosition();
+        // Create new fruit
+        fruits = createFruit();
+      }
+
+      document.getElementById('resetButton').addEventListener('click', (e) => {
+        e.stopPropagation();
+        resetGame();
+      });
 
       window.addEventListener('load', init);
       window.addEventListener('resize', () => {
